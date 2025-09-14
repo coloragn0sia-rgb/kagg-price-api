@@ -1,12 +1,10 @@
 const express = require('express');
 const chromium = require('chrome-aws-lambda');
 const puppeteer = require('puppeteer-core');
-const fs = require('fs');
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-// ✅ Render確認用ルート
 app.get('/', (req, res) => {
   res.send('✅ Kagg Price API is running. Try /kagg-price');
 });
@@ -16,33 +14,20 @@ app.get('/kagg-price', async (req, res) => {
   let browser;
 
   try {
+    const executablePath = await chromium.executablePath;
+    if (!executablePath) {
+      throw new Error('Chrome executable not found. This environment may not support chrome-aws-lambda.');
+    }
+
     browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath || '/usr/bin/chromium-browser',
+      executablePath,
       headless: chromium.headless
     });
 
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2' });
 
-    // ✅ HTML保存（任意：Renderではファイル保存は制限あり）
-    try {
-      const html = await page.content();
-      fs.writeFileSync('kagg.html', html);
-      console.log('✅ HTML保存成功: kagg.html');
-    } catch (e) {
-      console.error('❌ HTML保存失敗:', e.message);
-    }
-
-    // ✅ スクリーンショット保存（任意：Renderでは制限あり）
-    try {
-      await page.screenshot({ path: 'kagg.png', fullPage: true });
-      console.log('✅ スクリーンショット保存成功: kagg.png');
-    } catch (e) {
-      console.error('❌ スクリーンショット保存失敗:', e.message);
-    }
-
-    // ✅ dataLayer.push() から価格抽出
     const priceData = await page.evaluate(() => {
       const scripts = Array.from(document.querySelectorAll('script'));
       for (const script of scripts) {
@@ -59,13 +44,11 @@ app.get('/kagg-price', async (req, res) => {
       return { selling_price: null, member_price: null };
     });
 
-    console.log('🔍 抽出結果:', priceData);
     res.json({
       selling_price: priceData.selling_price || '取得失敗',
       member_price: priceData.member_price || '取得失敗'
     });
   } catch (error) {
-    console.error('❌ 取得エラー:', error.message);
     res.status(500).json({ error: '取得エラー', details: error.message });
   } finally {
     if (browser) await browser.close();
