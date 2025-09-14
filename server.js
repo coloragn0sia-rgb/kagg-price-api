@@ -16,7 +16,10 @@ app.get('/kagg-price', async (req, res) => {
   try {
     const executablePath = await chromium.executablePath;
     if (!executablePath) {
-      throw new Error('Chrome executable not found. This environment may not support chrome-aws-lambda.');
+      return res.status(500).json({
+        error: '取得エラー',
+        details: 'Chrome executable not found. This environment may not support chrome-aws-lambda.'
+      });
     }
 
     browser = await puppeteer.launch({
