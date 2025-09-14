@@ -3,14 +3,22 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const app = express();
 
+// ✅ Render対応：環境変数からポート取得
+const PORT = process.env.PORT || 3000;
+
+// ✅ ルートエンドポイント追加（RenderトップURL確認用）
+app.get('/', (req, res) => {
+  res.send('✅ Kagg Price API is running. Try /kagg-price');
+});
+
 app.get('/kagg-price', async (req, res) => {
   const url = 'https://www.kagg.jp/office-desks/okamura/344134/1229480/';
   let browser;
 
   try {
     browser = await puppeteer.launch({
-      headless: false, // ブラウザ表示でデバッグ
-      slowMo: 100,     // 操作をゆっくりに
+      headless: false,
+      slowMo: 100,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
@@ -34,7 +42,7 @@ app.get('/kagg-price', async (req, res) => {
       console.error('❌ スクリーンショット保存失敗:', e.message);
     }
 
-    // dataLayer.push() に含まれる selling_price / member_price を抽出
+    // dataLayer.push() に含まれる価格情報を抽出
     const priceData = await page.evaluate(() => {
       const scripts = Array.from(document.querySelectorAll('script'));
       for (const script of scripts) {
@@ -64,4 +72,5 @@ app.get('/kagg-price', async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log('🚀 API running on http://localhost:3000/kagg-price'));
+// ✅ Render環境での起動
+app.listen(PORT, () => console.log(`🚀 API running on http://localhost:${PORT}/kagg-price`));
